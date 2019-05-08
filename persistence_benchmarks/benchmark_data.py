@@ -4,15 +4,24 @@ Benchmark data generator
 """
 from itertools import product
 import numpy as np
+from .noise import normal_noise
 
-class PersistenceBenchmark(object):
+__shapes__ = [
+    'circle',
+    'cliffordTorus'
+    ]
+__samplings__ = [
+    'equal',
+    'uniform',
+    'noise'
+    ]
+
+class PersistenceDiagramBenchmark(object):
     """
     This is a data generator class
 
     Parameters
     ----------
-    target : str 
-        Target variable, one of 'PD', 'class', 'regression'. 
     shape : str
         Data shape. Currently one of 'circle', 'cliffordTorus'. 
     sampling : str
@@ -21,21 +30,46 @@ class PersistenceBenchmark(object):
         Distribution function of noise
     """
 
-    def __init__(self, target, shape, sampling, noise_distribution=None):
-        self.target = target
+    def __init__(self, shape, sampling, noise_distribution=normal_noise(sd=1.0)):
         self.shape = shape
         self.sampling = sampling
         self.noise_distribution = noise_distribution
         if shape == 'circle':
             self.data_generator = circleGenerator(self.sampling)
+            self.target_generator = circleTarget
         if shape == 'cliffordTorus':
             self.data_generator = cliffordGenerator(self.sampling)
+            self.target_generator = cliffordTarget
 
     def sample(self, n=100):
+        """
+        Return a sample from the shape and sampling distribution. 
+        
+        Parameters
+        ----------
+        n : int
+            Number of samples (in some cases this should be a square).
+
+        Returns
+        -------
+        data : array
+            Data sample from the shape given the sampling distribution. 
+        """
         data = self.data_generator(n=n)
         if self.sampling == 'noise':
-            data = data + self.noise_distribution(n)
+            data += self.noise_distribution(data)
         return data
+
+    def target(self):
+        """
+        Return the persistence diagram for this shape. 
+        
+        Returns
+        -------
+        pd : list of arrays
+            Persistence diagram. 
+        """
+        return self.target_generator()
 
 
 def circleGenerator(sampling):
@@ -58,6 +92,11 @@ def circleGenerator(sampling):
     return generate_circle
 
 
+def circleTarget():
+    return [np.array([[0.0, np.inf]]),
+            np.array([[0.0, 1.0]])]
+    
+
 def cliffordGenerator(sampling):
     def generate_angles(n):
         if sampling=='equal':
@@ -79,3 +118,11 @@ def cliffordGenerator(sampling):
                           np.cos(psi), np.sin(psi))) / np.sqrt(2)
 
     return generate_clifford
+
+
+def cliffordTarget():
+    return [np.array([[0.0, np.inf]]),
+            np.array([[0.0, np.sqrt(2)/2.0],
+                      [0.0, np.sqrt(2)/2.0]]),
+            np.array([[]]),
+            np.array([[np.sqrt(2)/2, 1.0]])]
