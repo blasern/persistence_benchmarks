@@ -1,76 +1,9 @@
 #!/usr/bin/env python
 """
-Benchmark data generator
+Benchmark data generators
 """
 from itertools import product
 import numpy as np
-from .noise import normal_noise
-
-__shapes__ = [
-    'circle',
-    'cliffordTorus'
-    ]
-__samplings__ = [
-    'equal',
-    'uniform',
-    'noise'
-    ]
-
-class PersistenceDiagramBenchmark(object):
-    """
-    This is a data generator class
-
-    Parameters
-    ----------
-    shape : str
-        Data shape. Currently one of 'circle', 'cliffordTorus'. 
-    sampling : str
-        Sampling strategy. One of 'equal', 'uniform', 'noise'
-    noise_distribution : fct
-        Distribution function of noise
-    """
-
-    def __init__(self, shape, sampling, noise_distribution=normal_noise(sd=1.0)):
-        self.shape = shape
-        self.sampling = sampling
-        self.noise_distribution = noise_distribution
-        if shape == 'circle':
-            self.data_generator = circleGenerator(self.sampling)
-            self.target_generator = circleTarget
-        if shape == 'cliffordTorus':
-            self.data_generator = cliffordGenerator(self.sampling)
-            self.target_generator = cliffordTarget
-
-    def sample(self, n=100):
-        """
-        Return a sample from the shape and sampling distribution. 
-        
-        Parameters
-        ----------
-        n : int
-            Number of samples (in some cases this should be a square).
-
-        Returns
-        -------
-        data : array
-            Data sample from the shape given the sampling distribution. 
-        """
-        data = self.data_generator(n=n)
-        if self.sampling == 'noise':
-            data += self.noise_distribution(data)
-        return data
-
-    def target(self):
-        """
-        Return the persistence diagram for this shape. 
-        
-        Returns
-        -------
-        pd : list of arrays
-            Persistence diagram. 
-        """
-        return self.target_generator()
-
 
 def circleGenerator(sampling):
     def generate_angle(n):
@@ -126,3 +59,38 @@ def cliffordTarget():
                       [0.0, np.sqrt(2)/2.0]]),
             np.array([[]]),
             np.array([[np.sqrt(2)/2, 1.0]])]
+
+
+def linkedTwistGenerator(sampling):
+    def generate_linked_twist_map(n, p=4.0, x0=None, y0=None):
+        """
+        Linked twist map
+        
+        Parameters
+        -----------
+        n : int 
+            Number of points
+        p : float (default : 4.0)
+            Linkage parameter
+        x0,y0 : float (default : None)
+            Initial point. Randomly generated if None. 
+        """
+        if x0 is None:
+            x0=np.random.rand(1)
+        if y0 is None:
+            y0=np.random.rand(1)
+        x = np.zeros(n)
+        y = np.zeros(n)
+        x[0] = x0
+        y[0] = y0
+        for i in range(1, n):
+            x[i] = np.modf(x[i-1] + p*y[i-1]*(1-y[i-1]))[0]
+            y[i] = np.modf(y[i-1] + p*x[i]*(1-x[i]))[0] 
+        return np.vstack((x, y)).transpose()
+
+    return generate_linked_twist_map
+
+def unknownTarget():
+    'unknown target'
+    return None
+   
